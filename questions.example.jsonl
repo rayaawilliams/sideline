@@ -1,0 +1,8 @@
+// eval/make_questions.py writes stat questions automatically. Add your own lines like these to
+// eval/questions.jsonl for news and favourites. Lines starting with // are ignored.
+//   answer_keywords  words that must appear in a correct answer; a list inside means "any of these"
+//   source           for news questions: the article file in data/docs/news that has the answer
+//   answerable       false when the data can't answer it, so the assistant should say so
+{"id": "n01", "kind": "news", "question": "What happened in the Northwestern football game this weekend?", "answer_keywords": ["Northwestern"], "source": "football-example-article.md"}
+{"id": "f01", "kind": "favourites", "question": "How are my teams doing?", "answer_keywords": ["Northwestern"]}
+{"id": "u01", "kind": "unanswerable", "question": "Who will win the Heisman in 2030?", "answerable": false}

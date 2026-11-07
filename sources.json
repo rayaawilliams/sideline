@@ -1,0 +1,38 @@
+{
+  "_help": [
+    "Which data the daily update pulls from the NCAA API (https://github.com/henrygd/ncaa-api).",
+    "Each path matches a page on ncaa.com: open the page in your browser and copy everything after ncaa.com.",
+    "Stat categories: go to https://www.ncaa.com/stats/<sport>/<division>, pick a category from the dropdown,",
+    "and copy its number from the URL, e.g. .../current/individual/750 -> 750.",
+    "Lacrosse is in its offseason until February, so its stats are last season's until then."
+  ],
+  "season_year": 2026,
+  "feeds": [
+    {
+      "sport": "football",
+      "division": "fbs",
+      "label": "College football (FBS)",
+      "stats": [
+        {"id": 750, "scope": "individual", "category": "Rushing touchdowns"}
+      ],
+      "scoreboard": {"type": "weekly", "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]},
+      "news": true
+    },
+    {
+      "sport": "lacrosse-women",
+      "division": "d1",
+      "label": "Women's college lacrosse (D1)",
+      "stats": [],
+      "scoreboard": null,
+      "news": true
+    },
+    {
+      "sport": "lacrosse-men",
+      "division": "d1",
+      "label": "Men's college lacrosse (D1)",
+      "stats": [],
+      "scoreboard": null,
+      "news": true
+    }
+  ]
+}

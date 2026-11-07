@@ -1,0 +1,7 @@
+{"sport": "Football", "title": "Rushing TDs", "updated": "Monday, November 02, 2026 - Through games Saturday, October 31, 2026", "page": 1, "pages": 1,
+ "data": [
+  {"Rank": "1", "Name": "Jordan Testplayer", "Team": "Riverside", "Cl": "Jr.", "Position": "RB", "G": "9", "Rush TD": "17"},
+  {"Rank": "2", "Name": "Avery Sample", "Team": "Lakeshore", "Cl": "Sr.", "Position": "RB", "G": "9", "Rush TD": "14"},
+  {"Rank": "3", "Name": "Casey Example", "Team": "Northwestern", "Cl": "So.", "Position": "QB", "G": "8", "Rush TD": "12"},
+  {"Rank": "3", "Name": "Riley Mock", "Team": "Hillcrest", "Cl": "Fr.", "Position": "RB", "G": "9", "Rush TD": "12"}
+ ]}

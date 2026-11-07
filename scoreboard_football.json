@@ -1,0 +1,8 @@
+{"inputMD5Sum": "x", "updated_at": "11-01-2026 23:50:30", "games": [
+  {"game": {"gameID": "900001", "startDate": "10-31-2026", "gameState": "final", "title": "Riverside Northwestern",
+            "away": {"score": "17", "names": {"char6": "RIVER", "short": "Riverside", "seo": "riverside", "full": "Riverside University"}},
+            "home": {"score": "24", "names": {"char6": "NWEST", "short": "Northwestern", "seo": "northwestern", "full": "Northwestern University"}}}},
+  {"game": {"gameID": "900002", "startDate": "11-07-2026", "gameState": "pre", "title": "Lakeshore Hillcrest",
+            "away": {"score": "", "names": {"short": "Lakeshore"}}, "home": {"score": "", "names": {"short": "Hillcrest"}}}},
+  {"game": {"gameID": "bad"}}
+]}
