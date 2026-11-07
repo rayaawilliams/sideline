@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, replace
 # Default model per provider. Model names change often: check each provider's docs
 # and override with RAG_MODEL if one of these has been retired.
 DEFAULT_MODELS = {
-    "gemini": "gemini-2.5-flash",
+    "gemini": "gemini-3.8-flash",
     "claude": "claude-haiku-5-5",
     "ollama": "llama3.2",
 }
