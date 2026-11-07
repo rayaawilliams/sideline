@@ -1,0 +1,12 @@
+# Pulled or built data: recreate it with `python -m sports.update` and `python -m rag.ingest --reset`
+data/sports.db
+data/raw/
+data/docs/*
+!data/docs/README.md
+.chroma/
+eval/questions.jsonl
+eval/results/
+.env
+__pycache__/
+.pytest_cache/
+.venv/

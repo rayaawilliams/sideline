@@ -1,0 +1,10 @@
+# Files NOT uploaded when deploying with `gcloud run deploy --source .`
+# The local database and news are uploaded too, so the app has data even if the first update fails.
+.git/
+.chroma/
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+eval/results/
+data/raw/
