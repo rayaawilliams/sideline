@@ -10,12 +10,6 @@ from sports import db
 from sports.assistant import build_assistant, load_follows
 
 KEYS = {"gemini": "GEMINI_API_KEY", "claude": "ANTHROPIC_API_KEY"}
-EXAMPLES = [
-    "How did Northwestern do last weekend?",
-    "Who leads college football in rushing touchdowns?",
-    "Did Northwestern win the women's lacrosse championship?",
-    "How are my players doing?",
-]
 
 st.set_page_config(page_title="Sideline", page_icon="🏟️")
 settings = load_settings()
@@ -59,19 +53,9 @@ st.markdown("**Built for Northwestern students.** In college it's hard to keep u
             "your favourite teams and players, and get the answer in seconds, with the stats and stories "
             "it came from.")
 
-choice = st.radio("Try one:", EXAMPLES, index=None, horizontal=False, label_visibility="collapsed")
-question = st.text_input("Ask anything about college football or lacrosse", value=choice or "")
 
-if question:
-    try:
-        with st.spinner("Checking the stats..."):
-            answer = get_assistant(provider).answer(question)
-    except Exception as error:  # keep the app up during a live demo
-        st.error("Sideline couldn't reach the AI model just now. Please try again in a moment.")
-        with st.expander("Details"):
-            st.code(str(error))
-        st.stop()
-    st.info(answer.text)
+def show_work(answer) -> None:
+    """The 'How I found this' panel under an answer."""
     with st.expander(f"How I found this · {answer.latency_s:.1f}s · {answer.provider}/{answer.model}"):
         if answer.sql:
             st.caption("Stats query")
@@ -84,3 +68,31 @@ if question:
             st.caption(f"News searched for: {answer.search}")
             for number, source in enumerate(answer.sources, start=1):
                 st.write(f"[{number}] {source['source']} (similarity {source['score']})")
+
+
+if "chat" not in st.session_state:
+    st.session_state.chat = []  # list of (question, answer)
+
+for past_question, past_answer in st.session_state.chat:
+    with st.chat_message("user"):
+        st.write(past_question)
+    with st.chat_message("assistant", avatar="🏟️"):
+        st.write(past_answer.text)
+        show_work(past_answer)
+
+question = st.chat_input("Ask about a team, a player or last weekend's game...")
+if question:
+    with st.chat_message("user"):
+        st.write(question)
+    with st.chat_message("assistant", avatar="🏟️"):
+        try:
+            with st.spinner("Checking the stats..."):
+                answer = get_assistant(provider).answer(question)
+        except Exception as error:  # keep the app up during a live demo
+            st.error("Sideline couldn't reach the AI model just now. Please try again in a moment.")
+            with st.expander("Details"):
+                st.code(str(error))
+            st.stop()
+        st.write(answer.text)
+        show_work(answer)
+    st.session_state.chat.append((question, answer))
