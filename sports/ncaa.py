@@ -7,6 +7,7 @@ and skip anything they don't recognise instead of crashing.
 """
 import json
 import re
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -15,12 +16,23 @@ from pathlib import Path
 USER_AGENT = "sideline-college-sports-cheat-sheet/1.0"
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """Trust certifi's certificates: python.org Python on macOS ships without any."""
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 class NcaaClient:
     def __init__(self, base_url: str, raw_dir: str | None = None, min_interval_s: float = 0.3):
         self.base_url = base_url.rstrip("/")
         self.raw_dir = Path(raw_dir) if raw_dir else None
         self.min_interval_s = min_interval_s
         self._last_request = 0.0
+        self._ssl = _ssl_context()
 
     def get(self, path: str, retries: int = 2):
         """GET a path like /stats/football/fbs/current/individual/750. Returns parsed JSON or None on 404."""
@@ -32,7 +44,7 @@ class NcaaClient:
             self._last_request = time.monotonic()
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             try:
-                with urllib.request.urlopen(request, timeout=30) as response:
+                with urllib.request.urlopen(request, timeout=30, context=self._ssl) as response:
                     data = json.load(response)
             except urllib.error.HTTPError as error:
                 if error.code == 404:
