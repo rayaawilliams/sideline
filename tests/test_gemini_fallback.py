@@ -13,6 +13,7 @@ class FakeModels:
 
     def generate_content(self, model, contents, config):
         self.calls.append(model)
+        self.last_config, self.last_contents = config, contents
         if model in self.busy:
             raise genai_errors.ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
         usage = pytypes.SimpleNamespace(prompt_token_count=3, candidates_token_count=2)
@@ -26,15 +27,17 @@ class FakeModels:
 def make(busy, monkeypatch, fallbacks=""):
     monkeypatch.setenv("RAG_FALLBACK_MODELS", fallbacks)
     llm = GeminiLLM.__new__(GeminiLLM)
-    llm.model, llm._max, llm._discovered = "flash-a", 50, None
+    llm.model, llm._max = "flash-a", 50
     llm._client = pytypes.SimpleNamespace(models=FakeModels(busy))
     return llm
 
 
-def test_busy_model_falls_back_to_discovered_flash(monkeypatch):
-    llm = make({"flash-a"}, monkeypatch)
-    assert llm.complete("sys", "q").text == "hi from flash-b"
-    assert llm.model == "flash-b"
+def test_busy_model_falls_back_to_default_list(monkeypatch):
+    llm = make({"flash-a", "gemini-3.1-flash-lite"}, monkeypatch)
+    assert llm.complete("sys", "q").text == "hi from gemma-4-31b-it"
+    assert llm.model == "gemma-4-31b-it"
+    sent = llm._client.models.last_config
+    assert sent.system_instruction is None and "sys" in llm._client.models.last_contents
 
 
 def test_configured_fallbacks_are_used(monkeypatch):
@@ -43,6 +46,6 @@ def test_configured_fallbacks_are_used(monkeypatch):
 
 
 def test_all_busy_raises(monkeypatch):
-    llm = make({"flash-a", "flash-b"}, monkeypatch)
+    llm = make({"flash-a", "x"}, monkeypatch, "x")
     with pytest.raises(genai_errors.ServerError):
         llm.complete("sys", "q")

@@ -24,6 +24,10 @@ class LLM(Protocol):
     def complete(self, system: str, prompt: str) -> Completion: ...
 
 
+# Tried in order when the main Gemini model is busy (checked Nov 2026).
+GEMINI_FALLBACKS = ["gemini-3.1-flash-lite", "gemma-4-31b-it", "gemini-3.8-flash"]
+
+
 class GeminiLLM:
     """Google Gemini through the google-genai SDK. Needs GEMINI_API_KEY."""
 
@@ -35,7 +39,6 @@ class GeminiLLM:
         self.model = model
         self._max = max_output_tokens
         self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        self._discovered = None
 
     def complete(self, system: str, prompt: str) -> Completion:
         """Ask the current model; if Google says it is busy, try backup models."""
@@ -55,33 +58,22 @@ class GeminiLLM:
         raise last_error
 
     def _backups(self) -> list:
-        """Backup models: RAG_FALLBACK_MODELS if set, else other Flash models this key can use."""
-        configured = [m.strip() for m in os.getenv("RAG_FALLBACK_MODELS", "").split(",") if m.strip()]
-        if configured:
-            return [m for m in configured if m != self.model]
-        if self._discovered is None:
-            self._discovered = []
-            try:
-                for item in self._client.models.list():
-                    name = (item.name or "").removeprefix("models/")
-                    actions = getattr(item, "supported_actions", None) or []
-                    if "flash" in name and "generateContent" in actions and name != self.model:
-                        self._discovered.append(name)
-            except Exception:
-                pass
-            self._discovered = sorted(set(self._discovered), reverse=True)[:3]
-        return self._discovered
+        """Backup models: RAG_FALLBACK_MODELS if set, else a list that has held up under load."""
+        configured = os.getenv("RAG_FALLBACK_MODELS", "")
+        models = [m.strip() for m in configured.split(",") if m.strip()] or GEMINI_FALLBACKS
+        return [m for m in models if m != self.model]
 
     def _generate(self, model: str, system: str, prompt: str) -> Completion:
         from google.genai import types
 
-        response = self._client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system, temperature=0, max_output_tokens=self._max,
-            ),
-        )
+        if model.startswith("gemma"):
+            # Gemma models on the Gemini API take no separate system instruction.
+            contents, config = f"{system}\n\n{prompt}", types.GenerateContentConfig(
+                temperature=0, max_output_tokens=self._max)
+        else:
+            contents, config = prompt, types.GenerateContentConfig(
+                system_instruction=system, temperature=0, max_output_tokens=self._max)
+        response = self._client.models.generate_content(model=model, contents=contents, config=config)
         usage = response.usage_metadata
         return Completion(
             response.text or "",
