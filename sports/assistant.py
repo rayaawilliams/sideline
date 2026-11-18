@@ -30,6 +30,16 @@ Data currently loaded:
 The user follows: {follows}
 Today is {today}.
 
+Examples of good plans:
+Q: How did Northwestern do last weekend?
+{{"sql": "SELECT date, away, away_score, home, home_score FROM games WHERE (home LIKE '%Northwestern%' OR away LIKE '%Northwestern%') AND state = 'final' ORDER BY date DESC LIMIT 1", "search": null}}
+Q: Who leads college football in rushing touchdowns?
+{{"sql": "SELECT rank, name, team, value FROM stat_leaders WHERE sport = 'football' AND category = 'Rushing touchdowns' ORDER BY rank LIMIT 3", "search": null}}
+Q: How are my teams doing? (user follows Northwestern)
+{{"sql": "SELECT date, away, away_score, home, home_score FROM games WHERE (home LIKE '%Northwestern%' OR away LIKE '%Northwestern%') AND state = 'final' ORDER BY date DESC LIMIT 3", "search": "Northwestern"}}
+Q: Did Northwestern win the women's lacrosse championship?
+{{"sql": null, "search": "Northwestern women's lacrosse championship"}}
+
 Reply with JSON only, no other text: {{"sql": "<query or null>", "search": "<phrase or null>"}}
 Use null for a tool you don't need. Use only sports, divisions and categories listed above.
 If the question is about "my players" or "my teams", filter on the ones the user follows."""
