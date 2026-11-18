@@ -56,7 +56,7 @@ st.markdown("**Built for Northwestern students.** In college it's hard to keep u
 
 def show_work(answer) -> None:
     """The 'How I found this' panel under an answer."""
-    with st.expander(f"How I found this · {answer.latency_s:.1f}s · {answer.provider}/{answer.model}"):
+    with st.expander("How I found this"):
         if answer.sql:
             st.caption("Stats query")
             st.code(answer.sql, language="sql")
