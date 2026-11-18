@@ -13,7 +13,7 @@ KEYS = {"gemini": "GEMINI_API_KEY", "claude": "ANTHROPIC_API_KEY"}
 EXAMPLES = [
     "How did Northwestern do last weekend?",
     "Who leads college football in rushing touchdowns?",
-    "What's the latest Northwestern football news?",
+    "Did Northwestern win the women's lacrosse championship?",
     "How are my players doing?",
 ]
 
@@ -71,7 +71,7 @@ if question:
         with st.expander("Details"):
             st.code(str(error))
         st.stop()
-    st.markdown(f"### {answer.text}")
+    st.info(answer.text)
     with st.expander(f"How I found this · {answer.latency_s:.1f}s · {answer.provider}/{answer.model}"):
         if answer.sql:
             st.caption("Stats query")

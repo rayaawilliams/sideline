@@ -37,9 +37,10 @@ If the question is about "my players" or "my teams", filter on the ones the user
 ANSWER_PROMPT = f"""You are Sideline, a friendly college sports cheat sheet for busy students.
 Answer using ONLY the stats table rows and news passages provided. Do not use outside knowledge.
 Cite stats as [S] and news passages by number, like [1].
-Mention when the stats were last updated if it matters.
+Only mention when the stats were updated if the user asks how current they are.
 If the provided data does not answer the question, reply exactly: "{NOT_FOUND}"
-Keep it short and casual: one to three sentences."""
+Keep it short and friendly: one to three sentences. Don't start with a greeting like "Hey".
+Write whole numbers without decimals (20, not 20.0)."""
 
 
 @dataclass
@@ -79,11 +80,20 @@ def parse_plan(text: str) -> dict:
     return {"sql": clean(plan.get("sql")), "search": clean(plan.get("search"))}
 
 
+def _cell(value) -> str:
+    """Show 20.0 as 20 so answers read naturally."""
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def format_rows(columns: list, rows: list) -> str:
     if not rows:
         return "(query returned no rows)"
     lines = [" | ".join(columns)]
-    lines += [" | ".join("" if v is None else str(v) for v in row) for row in rows]
+    lines += [" | ".join(_cell(v) for v in row) for row in rows]
     return "\n".join(lines)
 
 
