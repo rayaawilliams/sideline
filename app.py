@@ -15,7 +15,7 @@ st.set_page_config(page_title="Sideline", page_icon="🏟️")
 settings = load_settings()
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def get_assistant(provider: str):
     return build_assistant(load_settings(provider=provider))
 
@@ -69,6 +69,15 @@ def show_work(answer) -> None:
             for number, source in enumerate(answer.sources, start=1):
                 st.write(f"[{number}] {source['source']} (similarity {source['score']})")
 
+
+if "ready" not in st.session_state:
+    # Load the models once, quietly, before the first question.
+    with st.spinner("Getting Sideline ready..."):
+        try:
+            get_assistant(provider)
+        except Exception:
+            pass  # a missing key or busy model is reported when a question is asked
+    st.session_state.ready = True
 
 if "chat" not in st.session_state:
     st.session_state.chat = []  # list of (question, answer)
