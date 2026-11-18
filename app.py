@@ -11,9 +11,9 @@ from sports.assistant import build_assistant, load_follows
 
 KEYS = {"gemini": "GEMINI_API_KEY", "claude": "ANTHROPIC_API_KEY"}
 EXAMPLES = [
-    "Who leads college football in rushing touchdowns?",
     "How did Northwestern do last weekend?",
-    "Who was the top goal scorer in women's lacrosse last season?",
+    "Who leads college football in rushing touchdowns?",
+    "What's the latest Northwestern football news?",
     "How are my players doing?",
 ]
 
@@ -55,15 +55,22 @@ with st.sidebar:
 
 # ---------- main ----------
 st.title("🏟️ Sideline")
-st.markdown("**In college it's hard to keep up.** Ask about your teams and favourite players "
-            "and get the answer in seconds, with the stats and stories it came from.")
+st.markdown("**Built for Northwestern students.** In college it's hard to keep up. Ask about the 'Cats, "
+            "your favourite teams and players, and get the answer in seconds, with the stats and stories "
+            "it came from.")
 
 choice = st.radio("Try one:", EXAMPLES, index=None, horizontal=False, label_visibility="collapsed")
 question = st.text_input("Ask anything about college football or lacrosse", value=choice or "")
 
 if question:
-    with st.spinner("Checking the stats..."):
-        answer = get_assistant(provider).answer(question)
+    try:
+        with st.spinner("Checking the stats..."):
+            answer = get_assistant(provider).answer(question)
+    except Exception as error:  # keep the app up during a live demo
+        st.error("Sideline couldn't reach the AI model just now. Please try again in a moment.")
+        with st.expander("Details"):
+            st.code(str(error))
+        st.stop()
     st.markdown(f"### {answer.text}")
     with st.expander(f"How I found this · {answer.latency_s:.1f}s · {answer.provider}/{answer.model}"):
         if answer.sql:
