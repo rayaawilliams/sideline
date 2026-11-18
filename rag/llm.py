@@ -35,12 +35,48 @@ class GeminiLLM:
         self.model = model
         self._max = max_output_tokens
         self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        self._discovered = None
 
     def complete(self, system: str, prompt: str) -> Completion:
+        """Ask the current model; if Google says it is busy, try backup models."""
+        from google.genai import errors
+
+        last_error = None
+        for model in [self.model] + self._backups():
+            try:
+                completion = self._generate(model, system, prompt)
+            except (errors.ServerError, errors.ClientError) as error:
+                if getattr(error, "code", None) not in (429, 500, 503, 404):
+                    raise
+                last_error = error
+                continue
+            self.model = model  # stick with the model that answered
+            return completion
+        raise last_error
+
+    def _backups(self) -> list:
+        """Backup models: RAG_FALLBACK_MODELS if set, else other Flash models this key can use."""
+        configured = [m.strip() for m in os.getenv("RAG_FALLBACK_MODELS", "").split(",") if m.strip()]
+        if configured:
+            return [m for m in configured if m != self.model]
+        if self._discovered is None:
+            self._discovered = []
+            try:
+                for item in self._client.models.list():
+                    name = (item.name or "").removeprefix("models/")
+                    actions = getattr(item, "supported_actions", None) or []
+                    if "flash" in name and "generateContent" in actions and name != self.model:
+                        self._discovered.append(name)
+            except Exception:
+                pass
+            self._discovered = sorted(set(self._discovered), reverse=True)[:3]
+        return self._discovered
+
+    def _generate(self, model: str, system: str, prompt: str) -> Completion:
         from google.genai import types
 
         response = self._client.models.generate_content(
-            model=self.model,
+            model=model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system, temperature=0, max_output_tokens=self._max,
