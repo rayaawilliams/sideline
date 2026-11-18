@@ -124,6 +124,18 @@ def _team_name(side: dict) -> str:
     return (names.get("short") or names.get("full") or names.get("char6") or "").strip()
 
 
+def iso_date(value) -> str | None:
+    """'10-31-2026' or '10/31/2026' -> '2026-10-31'. ISO dates pass through; anything else is kept as is."""
+    if not value:
+        return None
+    text = str(value).strip()
+    match = re.fullmatch(r"(\d{1,2})[-/](\d{1,2})[-/](\d{4})", text)
+    if match:
+        month, day, year = match.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
+    return text
+
+
 def parse_scoreboard(payload: dict) -> list:
     """Games from a scoreboard response: {"games": [{"game": {...}}, ...]}."""
     games = []
@@ -136,7 +148,7 @@ def parse_scoreboard(payload: dict) -> list:
             continue
         games.append({
             "game_id": str(game.get("gameID") or game.get("url") or f"{_team_name(away)}@{_team_name(home)}:{game.get('startDate')}"),
-            "date": game.get("startDate"),
+            "date": iso_date(game.get("startDate")),
             "away": _team_name(away),
             "home": _team_name(home),
             "away_score": int(to_number(away.get("score"))) if to_number(away.get("score")) is not None else None,

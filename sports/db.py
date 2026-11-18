@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 SCHEMA_GUIDE = """Table stat_leaders: one row per player (or team) per leaderboard.
   sport, division, category, scope ('individual'|'team'), rank (1 = leader), name, team,
   class, position, games, stat (ranked column), value (its number), updated
-Table games: game_id, sport, division, date, away, home, away_score, home_score, state, title
+Table games: game_id, sport, division, date ('YYYY-MM-DD'), away, home, away_score, home_score,
+  state ('final' = finished, 'pre' = not played yet, 'live' = in progress), title
+For "last weekend" or "latest" results, use state = 'final' and order by date DESC (don't guess exact dates).
 Use LIKE with % for names and teams (e.g. team LIKE '%Northwestern%'). Order leaderboards by rank."""
 
 

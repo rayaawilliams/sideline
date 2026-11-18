@@ -35,7 +35,7 @@ def test_scoreboard_parses_games_and_skips_broken_entries():
     games = parse_scoreboard(fixture("scoreboard_football.json"))
     assert len(games) == 2
     assert games[0] == {
-        "game_id": "900001", "date": "10-31-2026", "away": "Riverside", "home": "Northwestern",
+        "game_id": "900001", "date": "2026-10-31", "away": "Riverside", "home": "Northwestern",
         "away_score": 17, "home_score": 24, "state": "final", "title": "Riverside Northwestern",
     }
     assert games[1]["away_score"] is None
@@ -131,3 +131,11 @@ def test_read_only_connection_blocks_writes_even_if_guard_missed(loaded):
     with pytest.raises(sqlite3.OperationalError):
         conn = sqlite3.connect(f"file:{loaded[0].sports_db}?mode=ro", uri=True)
         conn.execute("DELETE FROM games")
+
+
+def test_iso_date_converts_ncaa_formats():
+    from sports.ncaa import iso_date
+    assert iso_date("10-31-2026") == "2026-10-31"
+    assert iso_date("1/5/2027") == "2027-01-05"
+    assert iso_date("2026-10-31") == "2026-10-31"
+    assert iso_date(None) is None
