@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 # What the planning model is told about the tables. Keep in step with SCHEMA.
 SCHEMA_GUIDE = """Table stat_leaders: one row per player (or team) per leaderboard.
   sport, division, category, scope ('individual'|'team'), rank (1 = leader), name, team,
-  class, position, games, stat (ranked column), value (its number), updated
+  class, position ('QB' quarterback, 'RB' running back, 'WR' wide receiver, 'TE' tight end), games,
+  stat (ranked column), value (its number), updated
+  To find a team's quarterback, look for position = 'QB' on that team (for example in 'Passing touchdowns').
 Table games: game_id, sport, division, date ('YYYY-MM-DD'), away, home, away_score, home_score,
   state ('final' = finished, 'pre' = not played yet, 'live' = in progress), title
 For "last weekend" or "latest" results, use state = 'final' and order by date DESC (don't guess exact dates).
@@ -209,7 +211,7 @@ def lookup_sql(teams: list, players: list) -> list:
         if teams:
             conditions.append(f"team IN ({_quote(teams)})")
         queries.append(
-            "SELECT category, rank, name, team, value FROM stat_leaders "
+            "SELECT category, rank, name, team, position, value FROM stat_leaders "
             f"WHERE {' OR '.join(conditions)} ORDER BY rank LIMIT 15"
         )
     return queries
@@ -243,6 +245,6 @@ def team_games_sql(team: str) -> str:
 
 def player_stats_sql(players: list) -> str:
     return (
-        "SELECT name, team, category, rank, value FROM stat_leaders "
+        "SELECT name, team, position, category, rank, value FROM stat_leaders "
         f"WHERE name IN ({_quote(players)}) ORDER BY name, rank"
     )

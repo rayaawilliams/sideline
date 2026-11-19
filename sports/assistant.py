@@ -37,6 +37,8 @@ Q: Who leads college football in rushing touchdowns?
 {{"sql": "SELECT rank, name, team, value FROM stat_leaders WHERE sport = 'football' AND category = 'Rushing touchdowns' ORDER BY rank LIMIT 3", "search": null}}
 Q: How are my players doing? / How are my teams doing? (user follows team Northwestern, no players)
 {{"sql": "SELECT date, away, away_score, home, home_score FROM games WHERE (home LIKE '%Northwestern%' OR away LIKE '%Northwestern%') AND state = 'final' ORDER BY date DESC LIMIT 3", "search": "Northwestern"}}
+Q: Who is the quarterback on Ohio St.?
+{{"sql": "SELECT name, team, position, category, rank, value FROM stat_leaders WHERE team = 'Ohio St.' AND position = 'QB' ORDER BY rank LIMIT 3", "search": null}}
 Q: Did Northwestern win the women's lacrosse championship?
 {{"sql": null, "search": "Northwestern women's lacrosse championship"}}
 
@@ -117,6 +119,26 @@ def load_follows(path: str) -> dict:
 
 
 MY_FOLLOWS = re.compile(r"\bmy\s+(?:favou?rite\s+)?(teams?|players?)\b", re.I)
+STATUS_WORDS = re.compile(r"\b(how|doing|going|update|latest|recap|summary)\b", re.I)
+
+
+def is_status_question(question: str) -> bool:
+    """'How are my teams doing?' style questions: answered with the fixed summary."""
+    return bool(MY_FOLLOWS.search(question) and STATUS_WORDS.search(question))
+
+
+def fill_in_follows(question: str, follows: dict) -> str:
+    """'Who is the quarterback on my team?' -> 'Who is the quarterback on Northwestern?'"""
+    teams, players = follows.get("teams", []), follows.get("players", [])
+
+    def swap(match):
+        kind = match.group(1).lower()
+        names = teams if kind.startswith("team") else players
+        if not names:
+            return match.group(0)
+        return " and ".join(names) if kind.endswith("s") or len(names) == 1 else names[0]
+
+    return MY_FOLLOWS.sub(swap, question)
 
 
 class Assistant:
@@ -218,10 +240,12 @@ class Assistant:
 
     def answer(self, question: str) -> Answer:
         started, usage = time.perf_counter(), {}
-        if MY_FOLLOWS.search(question):
+        if is_status_question(question):
             return self.my_follows_answer(question, started)
+        asked = question
+        question = fill_in_follows(question, load_follows(self.settings.follows_file))
         plan = self.plan(question, usage)
-        result = Answer(question, "", sql=plan["sql"], search=plan["search"])
+        result = Answer(asked, "", sql=plan["sql"], search=plan["search"])
 
         columns, rows = [], []
         if plan["sql"]:

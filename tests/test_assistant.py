@@ -154,3 +154,31 @@ def test_no_favourites_gives_a_helpful_message(loaded, tmp_path):
     settings = replace(loaded[0], follows_file=str(follows))
     answer = Assistant(settings, FakeLLM(lambda s, p: "unused")).answer("How are my teams doing?")
     assert "Edit favourites" in answer.text
+
+
+def test_my_team_questions_fill_in_the_team_name():
+    from sports.assistant import fill_in_follows, is_status_question
+    follows = {"teams": ["Northwestern"], "players": ["Jordan Testplayer"]}
+    assert fill_in_follows("Who is the new quarterback on my team?", follows) == \
+        "Who is the new quarterback on Northwestern?"
+    assert fill_in_follows("Did my players score?", follows) == "Did Jordan Testplayer score?"
+    assert is_status_question("How are my teams doing?")
+    assert not is_status_question("Who is the new quarterback on my team?")
+
+
+def test_quarterback_question_reaches_the_planner_with_team_name(loaded, tmp_path):
+    from dataclasses import replace
+    follows = tmp_path / "follows.json"
+    follows.write_text(json.dumps({"teams": ["Northwestern"], "players": []}))
+    settings = replace(loaded[0], follows_file=str(follows))
+    seen = {}
+
+    def respond(system, prompt):
+        if system.startswith("You plan"):
+            seen["plan"] = prompt
+            return '{"sql": null, "search": null}'
+        return NOT_FOUND
+
+    answer = Assistant(settings, FakeLLM(respond)).answer("Who is the quarterback on my team?")
+    assert "quarterback on Northwestern" in seen["plan"]
+    assert answer.question == "Who is the quarterback on my team?"
