@@ -30,7 +30,7 @@ def update_stats(client, connection, feed) -> int:
             if not payload:
                 print(f"  ! no data for {feed['sport']} {stat['category']} ({path})")
                 break
-            rows += parse_stat_rows(payload, stat["scope"])
+            rows += parse_stat_rows(payload, stat["scope"], stat.get("value_column"), stat["category"])
             updated = payload.get("updated", updated)
             pages = int(payload.get("pages") or 1)
             page += 1

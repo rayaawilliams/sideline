@@ -145,6 +145,29 @@ class Assistant:
             return []
         return self.store.query(self.embedder.embed([phrase])[0], self.settings.top_k)
 
+    def direct_lookup(self, question: str) -> list:
+        """[(sql, columns, rows)] for teams and players named in the question, or the user's follows."""
+        try:
+            teams_known, players_known = db.known_names(self.settings.sports_db)
+        except Exception:
+            return []
+        teams = db.find_names(question, teams_known)
+        players = db.find_names(question, players_known)
+        if not (teams or players) and re.search(r"\bmy\b", question.lower()):
+            follows = load_follows(self.settings.follows_file)
+            wanted = " ".join(follows.get("teams", []) + follows.get("players", []))
+            teams = db.find_names(wanted, teams_known)
+            players = db.find_names(wanted, players_known)
+        results = []
+        for sql in db.lookup_sql(teams, players):
+            try:
+                columns, rows = db.run_query(self.settings.sports_db, sql, self.settings.max_sql_rows)
+            except Exception:
+                continue
+            if rows:
+                results.append((sql, columns, rows))
+        return results
+
     def answer(self, question: str) -> Answer:
         started, usage = time.perf_counter(), {}
         plan = self.plan(question, usage)
@@ -163,8 +186,21 @@ class Assistant:
                 except Exception as second_error:
                     result.sql_error = str(second_error)
         result.sql_rows = [dict(zip(columns, row)) for row in rows]
+        stats_block = format_rows(columns, rows) if result.sql else "(no stats query)"
 
         hits = self.search_news(result.search)
+        planned_stats = bool(plan["sql"])
+        if not rows and (planned_stats or not hits):
+            # The model's query found nothing: look up the teams and players directly.
+            direct = self.direct_lookup(question)
+            if direct:
+                result.sql = "; ".join(sql for sql, _, _ in direct)
+                result.sql_error = None
+                result.sql_rows = [dict(zip(cols, row)) for _, cols, found in direct for row in found]
+                stats_block = "\n\n".join(format_rows(cols, found) for _, cols, found in direct)
+        if not hits and not result.sql_rows:
+            result.search = result.search or question
+            hits = self.search_news(question)
         result.sources = [
             {"source": h.chunk.source, "page": h.chunk.page, "score": round(h.score, 3)} for h in hits
         ]
@@ -173,7 +209,7 @@ class Assistant:
         passages = "\n\n".join(f"[{i}] ({h.chunk.source})\n{h.chunk.text}" for i, h in enumerate(hits, 1))
         prompt = (
             f"Stats last updated: {updated}\n\n"
-            f"[S] Stats query: {result.sql or 'none'}\n{format_rows(columns, rows) if result.sql else '(no stats query)'}\n\n"
+            f"[S] Stats query: {result.sql or 'none'}\n{stats_block}\n\n"
             f"News passages:\n{passages or '(none)'}\n\n"
             f"Question: {question}"
         )

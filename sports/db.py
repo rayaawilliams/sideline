@@ -147,3 +147,69 @@ def run_query(path: str, sql: str, max_rows: int) -> tuple:
     finally:
         connection.close()
     return columns, rows
+
+
+# ---------- direct lookups (used when the model's own query finds nothing) ----------
+
+TEAM_ALIASES = {"wildcats": "Northwestern", "'cats": "Northwestern", "cats": "Northwestern", "nu": "Northwestern"}
+
+
+def _norm(text: str) -> str:
+    text = text.lower().replace("’", "'")
+    text = re.sub(r"\bstate\b", "st.", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def known_names(path: str) -> tuple:
+    """(team names, player names) that appear anywhere in the data."""
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        teams = {r[0] for r in connection.execute("SELECT home FROM games UNION SELECT away FROM games") if r[0]}
+        teams |= {r[0] for r in connection.execute("SELECT DISTINCT team FROM stat_leaders") if r[0]}
+        players = {r[0] for r in connection.execute("SELECT DISTINCT name FROM stat_leaders") if r[0]}
+    finally:
+        connection.close()
+    return teams, players
+
+
+def find_names(text: str, names) -> list:
+    """Names from `names` mentioned in `text`, longest first, ignoring case and State/St."""
+    haystack = f" {_norm(text)} "
+    found = []
+    for name in sorted(names, key=len, reverse=True):
+        needle = _norm(name)
+        if len(needle) < 3 or not re.search(rf"(?<![\w']){re.escape(needle)}(?![\w])", haystack):
+            continue
+        if any(needle in _norm(other) for other in found):
+            continue  # "Ohio St." already covers "Ohio"
+        found.append(name)
+    for alias, team in TEAM_ALIASES.items():
+        if re.search(rf"(?<![\w']){re.escape(alias)}(?![\w])", haystack) and team in names and team not in found:
+            found.append(team)
+    return found
+
+
+def _quote(values) -> str:
+    return ", ".join("'" + v.replace("'", "''") + "'" for v in values)
+
+
+def lookup_sql(teams: list, players: list) -> list:
+    """The read-only queries for a direct lookup: recent results, then stat lines."""
+    queries = []
+    if teams:
+        queries.append(
+            "SELECT date, away, away_score, home, home_score FROM games "
+            f"WHERE (home IN ({_quote(teams)}) OR away IN ({_quote(teams)})) AND state = 'final' "
+            f"ORDER BY date DESC LIMIT {3 * len(teams)}"
+        )
+    if teams or players:
+        conditions = []
+        if players:
+            conditions.append(f"name IN ({_quote(players)})")
+        if teams:
+            conditions.append(f"team IN ({_quote(teams)})")
+        queries.append(
+            "SELECT category, rank, name, team, value FROM stat_leaders "
+            f"WHERE {' OR '.join(conditions)} ORDER BY rank LIMIT 15"
+        )
+    return queries

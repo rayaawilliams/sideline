@@ -87,8 +87,22 @@ def to_number(value):
         return None
 
 
-def parse_stat_rows(payload: dict, scope: str) -> list:
-    """Rows of one stat leaderboard. The ranked stat is the last numeric column."""
+def _value_key(item: dict, value_column: str | None, category: str) -> str | None:
+    """Which column holds the ranked stat: the one named in sources.json, else a yards column for
+    a yards category, else the last numeric column."""
+    numeric = [k for k, v in item.items() if k not in KNOWN_KEYS and to_number(v) is not None]
+    if value_column and value_column in item:
+        return value_column
+    category = category.lower()
+    if "yards" in category and "per game" not in category:
+        yards = [k for k in numeric if "yds" in k.lower() or "yards" in k.lower()]
+        if yards:
+            return yards[0]
+    return numeric[-1] if numeric else None
+
+
+def parse_stat_rows(payload: dict, scope: str, value_column: str | None = None, category: str = "") -> list:
+    """Rows of one stat leaderboard."""
     rows = []
     for item in payload.get("data") or []:
         if not isinstance(item, dict):
@@ -99,10 +113,8 @@ def parse_stat_rows(payload: dict, scope: str) -> list:
             name = name or team
         if not name:
             continue
-        stat_key, value = None, None
-        for key, raw in item.items():
-            if key not in KNOWN_KEYS and to_number(raw) is not None:
-                stat_key, value = key, to_number(raw)
+        stat_key = _value_key(item, value_column, category)
+        value = to_number(item.get(stat_key)) if stat_key else None
         rank = to_number(item.get("Rank"))
         games = to_number(item.get("G") or item.get("GP"))
         rows.append({

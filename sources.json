@@ -13,9 +13,53 @@
       "division": "fbs",
       "label": "College football (FBS)",
       "stats": [
-        {"id": 750, "scope": "individual", "category": "Rushing touchdowns"}
+        {
+          "id": 750,
+          "scope": "individual",
+          "category": "Rushing touchdowns"
+        },
+        {
+          "id": 751,
+          "scope": "individual",
+          "category": "Passing touchdowns"
+        },
+        {
+          "id": 907,
+          "scope": "individual",
+          "category": "Rushing yards"
+        },
+        {
+          "id": 908,
+          "scope": "individual",
+          "category": "Receiving yards"
+        },
+        {
+          "id": 7,
+          "scope": "individual",
+          "category": "Rushing yards per game",
+          "value_column": "YPG"
+        }
       ],
-      "scoreboard": {"type": "weekly", "weeks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]},
+      "scoreboard": {
+        "type": "weekly",
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
       "news": true
     },
     {

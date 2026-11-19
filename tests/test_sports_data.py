@@ -139,3 +139,15 @@ def test_iso_date_converts_ncaa_formats():
     assert iso_date("1/5/2027") == "2027-01-05"
     assert iso_date("2026-10-31") == "2026-10-31"
     assert iso_date(None) is None
+
+
+def test_value_column_choice():
+    from sports.ncaa import parse_stat_rows
+    item = {"Rank": "1", "Name": "A", "Team": "T", "G": "10", "Rush Yds": "1,335", "Rush": "200", "Avg": "6.7"}
+    rows = parse_stat_rows({"data": [item]}, "individual", None, "Rushing yards")
+    assert rows[0]["stat"] == "Rush Yds" and rows[0]["value"] == 1335
+    per_game = dict(item, YPG="133.5")
+    rows = parse_stat_rows({"data": [per_game]}, "individual", "YPG", "Rushing yards per game")
+    assert rows[0]["value"] == 133.5
+    td = {"Rank": "1", "Name": "B", "Team": "T", "G": "11", "Rush TD": "20"}
+    assert parse_stat_rows({"data": [td]}, "individual", None, "Rushing touchdowns")[0]["value"] == 20

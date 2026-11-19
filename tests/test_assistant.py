@@ -102,3 +102,28 @@ def test_planner_sees_catalog_and_follows(loaded, tmp_path):
 
     Assistant(settings, FakeLLM(respond)).answer("How did my players do?")
     assert "Morgan Fixture" in seen["system"] and "category='Goals per game'" in seen["system"]
+
+
+def test_empty_query_falls_back_to_direct_team_lookup(loaded):
+    settings = loaded[0]
+    question = "How did Northwestern do last weekend?"
+    empty_sql = "SELECT * FROM games WHERE date = '1999-01-01'"
+    llm, _ = scripted_llm({question: [{"sql": empty_sql, "search": None}]})
+    answer = Assistant(settings, llm).answer(question)
+    assert any(row.get("home") == "Northwestern" or row.get("away") == "Northwestern" for row in answer.sql_rows)
+    assert answer.text != NOT_FOUND
+
+
+def test_my_teams_uses_follows_when_model_finds_nothing(loaded):
+    settings = loaded[0]
+    question = "How are my players doing?"
+    llm, _ = scripted_llm({question: [{"sql": None, "search": None}]})
+    answer = Assistant(settings, llm).answer(question)
+    assert answer.sql_rows, "follows.json lists Northwestern, so the direct lookup should find its games"
+
+
+def test_find_names_handles_state_and_nicknames():
+    from sports.db import find_names
+    teams = {"Ohio St.", "Ohio", "Northwestern", "West Virginia"}
+    assert find_names("did ohio state beat the wildcats?", teams) == ["Ohio St.", "Northwestern"]
+    assert find_names("how is West Virginia doing", teams) == ["West Virginia"]
