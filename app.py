@@ -107,13 +107,16 @@ def make_it_yours() -> None:
             Path(settings.follows_file).write_text(json.dumps(
                 {"players": [label[p] for p in players], "teams": teams}, indent=2))
             st.session_state.onboarded = True
-            st.session_state.pending = ("How are my teams and players doing?" if players
-                                        else "How are my teams doing?")
+            st.session_state.just_saved = True
             st.rerun()
 
 
 if not st.session_state.get("onboarded"):
     make_it_yours()
+elif st.session_state.pop("just_saved", False):
+    saved = load_follows(settings.follows_file)
+    st.success("Your cheat sheet is ready: " + ", ".join(saved.get("teams", []) + saved.get("players", []))
+               + ". Ask away below.")
 
 for past_question, past_answer in st.session_state.chat:
     with st.chat_message("user"):
@@ -122,7 +125,7 @@ for past_question, past_answer in st.session_state.chat:
         st.write(past_answer.text)
         show_work(past_answer)
 
-question = st.chat_input("Ask about a team, a player or last weekend's game...") or st.session_state.pop("pending", None)
+question = st.chat_input("Ask about a team, a player or last weekend's game...")
 if question:
     with st.chat_message("user"):
         st.write(question)
