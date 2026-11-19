@@ -119,7 +119,9 @@ def load_follows(path: str) -> dict:
 
 
 MY_FOLLOWS = re.compile(r"\bmy\s+(?:favou?rite\s+)?(teams?|players?)\b", re.I)
-STATUS_WORDS = re.compile(r"\b(how|doing|going|update|latest|recap|summary)\b", re.I)
+STATUS_WORDS = re.compile(
+    r"\b(how|doing|going|update|latest|recap|summary|next|when|schedule|upcoming|last|score|result|"
+    r"win|won|lose|lost|play|playing|played)\b", re.I)
 
 
 def is_status_question(question: str) -> bool:
@@ -226,7 +228,9 @@ class Assistant:
                 "The user asked about their followed teams and players.\n"
                 f"Followed teams: {', '.join(teams) or 'none'}. Followed players: {', '.join(players) or 'none'}.\n"
                 "In games, state 'final' = played (with scores) and 'pre' = upcoming. "
-                "For each team, give its latest result, then its next game. For each player, give their stats.\n"
+                "Answer what the user asked: e.g. only the next game if they asked about the next game, "
+                "only the last result if they asked about last weekend. If they asked generally, give each "
+                "team's latest result and next game, and each player's stats.\n"
                 + (f"No stats were found for these players, so say 'There's no recent data on {', '.join(missing)} yet.': "
                    f"{', '.join(missing)}\n" if missing else "")
                 + "\n[S] Stats query: lookups below\n" + "\n\n".join(blocks)

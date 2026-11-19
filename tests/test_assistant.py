@@ -182,3 +182,10 @@ def test_quarterback_question_reaches_the_planner_with_team_name(loaded, tmp_pat
     answer = Assistant(settings, FakeLLM(respond)).answer("Who is the quarterback on my team?")
     assert "quarterback on Northwestern" in seen["plan"]
     assert answer.question == "Who is the quarterback on my team?"
+
+
+def test_team_result_and_schedule_questions_use_the_fixed_lookup():
+    from sports.assistant import is_status_question
+    for question in ["Did my team win last weekend?", "When is my team's next game?",
+                     "How are my players doing?", "What was my team's score last week?"]:
+        assert is_status_question(question), question
