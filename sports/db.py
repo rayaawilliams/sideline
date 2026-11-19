@@ -226,3 +226,23 @@ def follow_options(path: str) -> tuple:
     finally:
         connection.close()
     return teams, players
+
+
+def team_games_sql(team: str) -> str:
+    """One team's last two results and next game, newest result first."""
+    t = _quote([team])
+    columns = "date, away, away_score, home, home_score, state"
+    match = f"(home IN ({t}) OR away IN ({t}))"
+    return (
+        f"SELECT * FROM (SELECT {columns} FROM games WHERE {match} AND state = 'final' "
+        f"ORDER BY date DESC LIMIT 2) UNION ALL "
+        f"SELECT * FROM (SELECT {columns} FROM games WHERE {match} AND state = 'pre' "
+        f"ORDER BY date ASC LIMIT 1)"
+    )
+
+
+def player_stats_sql(players: list) -> str:
+    return (
+        "SELECT name, team, category, rank, value FROM stat_leaders "
+        f"WHERE name IN ({_quote(players)}) ORDER BY name, rank"
+    )

@@ -100,7 +100,7 @@ def test_planner_sees_catalog_and_follows(loaded, tmp_path):
         seen.setdefault("system", system)
         return '{"sql": null, "search": null}' if system.startswith("You plan") else NOT_FOUND
 
-    Assistant(settings, FakeLLM(respond)).answer("How did my players do?")
+    Assistant(settings, FakeLLM(respond)).answer("Did Morgan Fixture score this week?")
     assert "Morgan Fixture" in seen["system"] and "category='Goals per game'" in seen["system"]
 
 
@@ -127,3 +127,30 @@ def test_find_names_handles_state_and_nicknames():
     teams = {"Ohio St.", "Ohio", "Northwestern", "West Virginia"}
     assert find_names("did ohio state beat the wildcats?", teams) == ["Ohio St.", "Northwestern"]
     assert find_names("how is West Virginia doing", teams) == ["West Virginia"]
+
+
+def test_my_teams_and_players_always_covers_everyone(loaded, tmp_path):
+    from dataclasses import replace
+    follows = tmp_path / "follows.json"
+    follows.write_text(json.dumps({"teams": ["Northwestern"], "players": ["Jordan Testplayer", "Nobody Atall"]}))
+    settings = replace(loaded[0], follows_file=str(follows))
+    seen = {}
+
+    def respond(system, prompt):
+        assert not system.startswith("You plan"), "my-teams questions must not ask the model for SQL"
+        seen["prompt"] = prompt
+        return "summary [S]"
+
+    answer = Assistant(settings, FakeLLM(respond)).answer("How are my teams and players doing?")
+    assert "Games for Northwestern" in seen["prompt"] and "Jordan Testplayer" in seen["prompt"]
+    assert "There's no recent data on Nobody Atall yet." in seen["prompt"]
+    assert any(row.get("name") == "Jordan Testplayer" for row in answer.sql_rows)
+
+
+def test_no_favourites_gives_a_helpful_message(loaded, tmp_path):
+    from dataclasses import replace
+    follows = tmp_path / "follows.json"
+    follows.write_text(json.dumps({"teams": [], "players": []}))
+    settings = replace(loaded[0], follows_file=str(follows))
+    answer = Assistant(settings, FakeLLM(lambda s, p: "unused")).answer("How are my teams doing?")
+    assert "Edit favourites" in answer.text

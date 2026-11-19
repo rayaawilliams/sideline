@@ -49,7 +49,7 @@ ANSWER_PROMPT = f"""You are Sideline, a friendly college sports cheat sheet for 
 Answer using ONLY the stats table rows and news passages provided. Do not use outside knowledge.
 Cite stats as [S] and news passages by number, like [1].
 Only mention when the stats were updated if the user asks how current they are.
-For "my players" or "my teams", summarise how the user's followed teams and players are doing from the rows.
+For "my players" or "my teams", cover every followed team and player, and say plainly when there is no data for one.
 If the provided data does not answer the question, reply exactly: "{NOT_FOUND}"
 Keep it short and friendly: one to three sentences. Don't start with a greeting like "Hey".
 Write whole numbers without decimals (20, not 20.0)."""
@@ -116,6 +116,9 @@ def load_follows(path: str) -> dict:
         return {"players": [], "teams": []}
 
 
+MY_FOLLOWS = re.compile(r"\bmy\s+(?:favou?rite\s+)?(teams?|players?)\b", re.I)
+
+
 class Assistant:
     def __init__(self, settings, llm, store=None, embedder=None):
         self.settings = settings
@@ -168,8 +171,55 @@ class Assistant:
                 results.append((sql, columns, rows))
         return results
 
+    def my_follows_answer(self, question: str, started: float) -> Answer:
+        """'How are my teams/players doing?': always the same lookups, no model-written SQL."""
+        usage = {}
+        follows = load_follows(self.settings.follows_file)
+        teams, players = follows.get("teams", []), follows.get("players", [])
+        result = Answer(question, "")
+        queries, blocks, all_rows = [], [], []
+        for team in teams:
+            sql = db.team_games_sql(team)
+            columns, rows = db.run_query(self.settings.sports_db, sql, self.settings.max_sql_rows)
+            queries.append(sql)
+            blocks.append(f"Games for {team}:\n" + (format_rows(columns, rows) if rows else "(no games found)"))
+            all_rows += [dict(zip(columns, row)) for row in rows]
+        missing = []
+        if players:
+            sql = db.player_stats_sql(players)
+            columns, rows = db.run_query(self.settings.sports_db, sql, self.settings.max_sql_rows)
+            queries.append(sql)
+            found = {row[0] for row in rows}
+            missing = [p for p in players if p not in found]
+            if rows:
+                blocks.append("Player stats:\n" + format_rows(columns, rows))
+            all_rows += [dict(zip(columns, row)) for row in rows]
+        result.sql = "; ".join(queries) or None
+        result.sql_rows = all_rows
+        if not teams and not players:
+            result.text = ("You haven't picked any favourite teams or players yet. "
+                           "Use **Edit favourites** in the sidebar to add some.")
+        else:
+            prompt = (
+                "The user asked about their followed teams and players.\n"
+                f"Followed teams: {', '.join(teams) or 'none'}. Followed players: {', '.join(players) or 'none'}.\n"
+                "In games, state 'final' = played (with scores) and 'pre' = upcoming. "
+                "For each team, give its latest result, then its next game. For each player, give their stats.\n"
+                + (f"No stats were found for these players, so say 'There's no recent data on {', '.join(missing)} yet.': "
+                   f"{', '.join(missing)}\n" if missing else "")
+                + "\n[S] Stats query: lookups below\n" + "\n\n".join(blocks)
+                + f"\n\nNews passages:\n(none)\n\nQuestion: {question}"
+            )
+            result.text = self._complete(ANSWER_PROMPT, prompt, usage).strip()
+        result.provider, result.model = self.llm.provider, self.llm.model
+        result.seconds = time.perf_counter() - started
+        result.input_tokens, result.output_tokens = usage.get("in"), usage.get("out")
+        return result
+
     def answer(self, question: str) -> Answer:
         started, usage = time.perf_counter(), {}
+        if MY_FOLLOWS.search(question):
+            return self.my_follows_answer(question, started)
         plan = self.plan(question, usage)
         result = Answer(question, "", sql=plan["sql"], search=plan["search"])
 
