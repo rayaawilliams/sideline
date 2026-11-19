@@ -31,14 +31,15 @@ def available_providers() -> list:
 with st.sidebar:
     st.subheader("My players & teams")
     follows = load_follows(settings.follows_file)
-    players = st.text_area("Players (one per line)", "\n".join(follows.get("players", [])))
-    teams = st.text_area("Teams (one per line)", "\n".join(follows.get("teams", [])))
-    if st.button("Save favourites"):
-        Path(settings.follows_file).write_text(json.dumps({
-            "players": [p.strip() for p in players.splitlines() if p.strip()],
-            "teams": [t.strip() for t in teams.splitlines() if t.strip()],
-        }, indent=2))
-        st.success("Saved")
+    st.write("**Teams:** " + (", ".join(follows.get("teams", [])) or "none yet"))
+    st.write("**Players:** " + (", ".join(follows.get("players", [])) or "none yet"))
+    if st.button("Edit favourites"):
+        st.session_state.onboarded = False
+    if st.button("Start over for a new fan"):
+        Path(settings.follows_file).write_text(json.dumps({"players": [], "teams": []}, indent=2))
+        st.session_state.onboarded = False
+        st.session_state.chat = []
+        st.rerun()
     st.divider()
     st.caption(f"Stats updated: {db.get_meta(settings.sports_db, 'last_update') or 'not yet, run the update'}")
     providers = available_providers()
@@ -82,6 +83,38 @@ if "ready" not in st.session_state:
 if "chat" not in st.session_state:
     st.session_state.chat = []  # list of (question, answer)
 
+
+def make_it_yours() -> None:
+    """Ask for favourite teams and players, picked from the ones Sideline has data for."""
+    try:
+        team_options, player_rows = db.follow_options(settings.sports_db)
+    except Exception:
+        st.info("No sports data yet: run `python -m sports.update` first.")
+        return
+    label = {f"{name} ({team})": name for name, team in player_rows}
+    current = load_follows(settings.follows_file)
+    with st.form("make_it_yours"):
+        st.markdown("#### 👋 Make Sideline yours")
+        st.caption("Pick 2-3 teams and players you follow. Start typing to search.")
+        teams = st.multiselect("Favourite teams", team_options,
+                               default=[t for t in current.get("teams", []) if t in team_options])
+        players = st.multiselect("Favourite players", list(label),
+                                 default=[k for k, v in label.items() if v in current.get("players", [])])
+        if st.form_submit_button("Build my cheat sheet", type="primary"):
+            if not teams and not players:
+                st.warning("Pick at least one team or player.")
+                return
+            Path(settings.follows_file).write_text(json.dumps(
+                {"players": [label[p] for p in players], "teams": teams}, indent=2))
+            st.session_state.onboarded = True
+            st.session_state.pending = ("How are my teams and players doing?" if players
+                                        else "How are my teams doing?")
+            st.rerun()
+
+
+if not st.session_state.get("onboarded"):
+    make_it_yours()
+
 for past_question, past_answer in st.session_state.chat:
     with st.chat_message("user"):
         st.write(past_question)
@@ -89,7 +122,7 @@ for past_question, past_answer in st.session_state.chat:
         st.write(past_answer.text)
         show_work(past_answer)
 
-question = st.chat_input("Ask about a team, a player or last weekend's game...")
+question = st.chat_input("Ask about a team, a player or last weekend's game...") or st.session_state.pop("pending", None)
 if question:
     with st.chat_message("user"):
         st.write(question)

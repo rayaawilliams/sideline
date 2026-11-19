@@ -213,3 +213,16 @@ def lookup_sql(teams: list, players: list) -> list:
             f"WHERE {' OR '.join(conditions)} ORDER BY rank LIMIT 15"
         )
     return queries
+
+
+def follow_options(path: str) -> tuple:
+    """(teams, players) to choose favourites from: teams sorted by name, players as (name, team)."""
+    connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        teams = sorted({r[0] for r in connection.execute("SELECT home FROM games UNION SELECT away FROM games") if r[0]}
+                       | {r[0] for r in connection.execute("SELECT DISTINCT team FROM stat_leaders") if r[0]})
+        players = [(r[0], r[1]) for r in connection.execute(
+            "SELECT name, team FROM stat_leaders GROUP BY name, team ORDER BY name")]
+    finally:
+        connection.close()
+    return teams, players
